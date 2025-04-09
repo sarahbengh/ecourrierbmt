@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { PDFDocument } from 'pdf-lib';
 
-// fait moi le backend pour cette page avec php 
 const EnregistrerUnCourrier = () => {
   const [courrier, setCourrier] = useState({
-    type: 'incoming',
+    type: 'arrivé',
     priority: '',
     dateEmail: '',
     arrivalDate: '',
@@ -99,60 +98,60 @@ const EnregistrerUnCourrier = () => {
 
   return (
     <div className="flex h-screen">
-      <div className="w-1/2 bg-blue-700 text-white p-6 overflow-y-auto">
-        <h2 className="text-xl font-bold">Incoming email (by default)</h2>
+      <div className="w-1/2 bg-[#02A8DB] text-white p-6 overflow-y-auto">
+        <h2 className="text-xl font-bold">Email arrivé (par défaut)</h2>
         <div className="mt-4 space-y-4">
           <div>
-            <label>Type of email</label>
-            <select name="type" onChange={handleChange} className="form-select mt-1 block w-full bg-blue-600">
-              <option value="incoming">Incoming</option>
-              <option value="outgoing">Outgoing</option>
+            <label>Type de courrier</label>
+            <select name="type" onChange={handleChange} className="form-select mt-1 block w-full bg-[#02A8DB] border-2 border-white hover:border-[#5041BC] focus:border-[#5041BC]">
+              <option value="arrivé">Arrivé</option>
+              <option value="départ">Départ</option>
             </select>
           </div>
           <div>
-            <label>Priority</label>
-            <select name="priority" onChange={handleChange} className="form-select mt-1 block w-full bg-blue-600">
-              <option value="">Choose a value</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
+            <label>Priorité</label>
+            <select name="priority" onChange={handleChange} className="form-select mt-1 block w-full bg-[#02A8DB] border-2 border-white hover:border-[#5041BC] focus:border-[#5041BC]">
+              <option value="">Choisir une valeur</option>
+              <option value="low">Faible</option>
+              <option value="medium">Moyenne</option>
+              <option value="high">Haute</option>
             </select>
           </div>
           <div>
-            <label>Date of email</label>
-            <input type="date" name="dateEmail" onChange={handleChange} className="form-input mt-1 block w-full bg-blue-600" />
+            <label>Date de réception de l'email</label>
+            <input type="date" name="dateEmail" onChange={handleChange} className="form-input mt-1 block w-full bg-[#02A8DB] border-2 border-white hover:border-[#5041BC] focus:border-[#5041BC]" />
           </div>
           <div>
-            <label>Arrival Date</label>
-            <input type="date" name="arrivalDate" onChange={handleChange} className="form-input mt-1 block w-full bg-blue-600" />
+            <label>Date d'arrivée</label>
+            <input type="date" name="arrivalDate" onChange={handleChange} className="form-input mt-1 block w-full bg-[#02A8DB] border-2 border-white hover:border-[#5041BC] focus:border-[#5041BC]" />
           </div>
           <div>
-            <label>Object</label>
-            <input type="text" name="object" onChange={handleChange} value={courrier.object} className="form-input mt-1 block w-full bg-blue-600" />
+            <label>Objet</label>
+            <input type="text" name="object" onChange={handleChange} value={courrier.object} className="form-input mt-1 block w-full bg-[#02A8DB] border-2 border-white hover:border-[#5041BC] focus:border-[#5041BC]" />
           </div>
           <div>
-            <label>Sender</label>
-            <input type="text" name="sender" onChange={handleChange} value={courrier.sender} className="form-input mt-1 block w-full bg-blue-600" />
+            <label>Expéditeur</label>
+            <input type="text" name="sender" onChange={handleChange} value={courrier.sender} className="form-input mt-1 block w-full bg-[#02A8DB] border-2 border-white hover:border-[#5041BC] focus:border-[#5041BC]" />
           </div>
           <div>
-            <label>Initiative Entity</label>
-            <select name="initiatrice" onChange={handleChange} className="form-select mt-1 block w-full bg-blue-600">
-              <option value="">Choose a value</option>
+            <label>Entité initiatrice</label>
+            <select name="initiatrice" onChange={handleChange} className="form-select mt-1 block w-full bg-[#02A8DB] border-2 border-white hover:border-[#5041BC] focus:border-[#5041BC]">
+              <option value="">Choisir une valeur</option>
             </select>
           </div>
           <div>
-            <label>Treating Entity</label>
-            <select name="traitante" onChange={handleChange} className="form-select mt-1 block w-full bg-blue-600">
-              <option value="">Choose a value</option>
+            <label>Entité traitante</label>
+            <select name="traitante" onChange={handleChange} className="form-select mt-1 block w-full bg-[#02A8DB] border-2 border-white hover:border-[#5041BC] focus:border-[#5041BC]">
+              <option value="">Choisir une valeur</option>
             </select>
           </div>
           <div>
-            <label>Distribution List</label>
+            <label>Liste de diffusion</label>
             <div className="flex flex-wrap space-y-2">
               {diffusionList.map((item, index) => (
                 <div key={index} className="mr-4">
                   <label>
-                    <input type="checkbox" value={item} onChange={handleDiffusionChange} className="form-checkbox text-blue-600" /> {item}
+                    <input type="checkbox" value={item} onChange={handleDiffusionChange} className="form-checkbox text-[#02A8DB]" /> {item}
                   </label>
                 </div>
               ))}
@@ -163,32 +162,32 @@ const EnregistrerUnCourrier = () => {
       <div className="w-1/2 p-6 flex flex-col items-center justify-center">
         <h1 className="text-2xl font-bold mb-4">Enregistrer un courrier</h1>
         <div 
-          className={`border-dashed border-2 border-blue-500 p-6 w-full h-full flex items-center justify-center relative ${dragging ? 'bg-gray-200' : 'bg-white'}`}
+          className={`border-dashed border-2 border-[#02A8DB] p-6 w-full h-full flex items-center justify-center relative ${dragging ? 'bg-gray-200' : 'bg-white'}`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
           <input type="file" name="file" onChange={(e) => handleFileChange(e.target.files[0])} className="hidden" id="file-upload" />
           <label htmlFor="file-upload" className="cursor-pointer w-full h-full flex items-center justify-center absolute inset-0">
-            <div className="text-center text-blue-500">
+            <div className="text-center text-[#02A8DB]">
               <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              <p>Drag and Drop or <span className="text-blue-700 underline">Choose a file</span></p>
+              <p>Glissez-déposez ou <span className="text-[#5041BC] underline">Choisir un fichier</span></p>
             </div>
           </label>
           {courrier.file && (
             <div className="absolute inset-0 p-4 bg-white flex flex-col items-center justify-center">
-              <button onClick={handleRemoveFile} className="mb-4 bg-red-500 text-white p-2 rounded">Remove File</button>
+              <button onClick={handleRemoveFile} className="mb-4 bg-red-500 text-white p-2 rounded">Supprimer le fichier</button>
               {courrier.file.type === 'application/pdf' ? (
                 <iframe src={URL.createObjectURL(courrier.file)} className="w-full h-full" />
               ) : (
-                <img src={URL.createObjectURL(courrier.file)} alt="Uploaded file" className="w-full h-full object-contain" />
+                <img src={URL.createObjectURL(courrier.file)} alt="Fichier téléchargé" className="w-full h-full object-contain" />
               )}
             </div>
           )}
         </div>
-        <button onClick={handleSubmit} className="mt-6 w-full bg-blue-700 text-white p-3 rounded">Valider le courrier</button>
+        <button onClick={handleSubmit} className="mt-6 w-full bg-[#02A8DB] text-white p-3 rounded hover:bg-[#5041BC]">Valider  et Archiver le courrier</button>
       </div>
     </div>
   );
