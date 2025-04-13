@@ -19,7 +19,13 @@ def create_app():
     app.config["SESSION_TYPE"] = "filesystem"  # Permet de stocker la session côté serveur
     app.secret_key = "un_secret_aleatoire"
     app.config["JWT_SECRET_KEY"] = "chaima"
-
+    app.config['JWT_TOKEN_LOCATION'] = ['cookies']
+    app.config['JWT_COOKIE_SECURE'] = False  # True en production avec HTTPS
+    app.config['JWT_COOKIE_HTTPONLY'] = True
+    app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
+    app.config['JWT_SECRET_KEY'] = 'super-secret'  # À changer évidemment
+    
+    jwt = JWTManager(app)
     # Initialisation correcte des extensions
     sess.init_app(app)  # ✅ Utilise l'instance globale
     db.init_app(app)
