@@ -1,7 +1,7 @@
 from flask import Flask, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
-from config import Config
+from .config import Config
 from flask_socketio import SocketIO
 from flask_jwt_extended import JWTManager
 from flask_session import Session
@@ -11,23 +11,22 @@ db = SQLAlchemy()
 bcrypt = Bcrypt()
 socketio = SocketIO()
 jwt = JWTManager()
-sess = Session()  # ✅ Garde l'instance en dehors de create_app()
+ 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)  # ✅ Charge la config depuis ton fichier Config
-    app.config["SESSION_TYPE"] = "filesystem"  # Permet de stocker la session côté serveur
-    app.secret_key = "un_secret_aleatoire"
-    app.config["JWT_SECRET_KEY"] = "chaima"
-    app.config['JWT_TOKEN_LOCATION'] = ['cookies']
-    app.config['JWT_COOKIE_SECURE'] = False  # True en production avec HTTPS
-    app.config['JWT_COOKIE_HTTPONLY'] = True
-    app.config['JWT_ACCESS_COOKIE_PATH'] = '/'
-    app.config['JWT_SECRET_KEY'] = 'super-secret'  # À changer évidemment
+    app.secret_key = "chaima"
+    app.config["JWT_SECRET_KEY"] = 'super-secret'  # Clé secrète pour JWT
+    app.config['JWT_TOKEN_LOCATION'] = ['cookies']  # Indique où stocker le token
+    app.config['JWT_COOKIE_SECURE'] = False  # False en local (True en prod avec HTTPS)
+    app.config['JWT_COOKIE_HTTPONLY'] = True  # Empêche l'accès JS au cookie
+    app.config['JWT_ACCESS_COOKIE_PATH'] = '/'  # Chemin pour le cookie
     
+    app.config['JWT_COOKIE_HTTPONLY'] = True  # Pour rendre le cookie HttpOnly
     jwt = JWTManager(app)
     # Initialisation correcte des extensions
-    sess.init_app(app)  # ✅ Utilise l'instance globale
+ 
     db.init_app(app)
     bcrypt.init_app(app)
     socketio.init_app(app)

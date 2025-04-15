@@ -17,6 +17,16 @@ class Utilisateur(db.Model):
     numero_tel = db.Column(db.String(20))  # Tu peux ajuster la taille si nécessaire
     role = db.Column(db.String(50), nullable=False)
     
+
+class Token(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=False)
+    token = db.Column(db.String(512), nullable=False, unique=True)
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    date_expiration = db.Column(db.DateTime, nullable=False)
+    type = db.Column(db.String(10), default='access')  # access ou refresh
+
+    utilisateur = db.relationship('Utilisateur', backref='tokens')
     
 class Contact(db.Model):
     id = db.Column(db.Integer, primary_key=True)

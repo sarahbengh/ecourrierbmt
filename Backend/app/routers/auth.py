@@ -1,12 +1,12 @@
 from flask import Blueprint, request, jsonify
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
-    create_access_token, jwt_required, get_jwt_identity, JWTManager,
+    create_access_token, jwt_required, get_jwt_identity, JWTManager,get_jwt,
     set_access_cookies, unset_jwt_cookies
 )
-from ..models import Contact, Utilisateur
+from ..models import Contact, Utilisateur ,Token
 from ..create_app import db
-from datetime import timedelta
+from datetime import timedelta, datetime
 from functools import wraps
 
 auth_bp = Blueprint('auth', __name__)
@@ -53,22 +53,51 @@ def login():
     if not utilisateur or not bcrypt.check_password_hash(utilisateur.mot_de_passe, data["password"]):
         return jsonify({"message": "Identifiants incorrects"}), 401
 
+    # Définir expiration
+    expiration = timedelta(days=2)
+    expiration_date = datetime.utcnow() + expiration
+
+    # Générer le token
     access_token = create_access_token(
         identity=str(utilisateur.id),
         additional_claims={"role": utilisateur.role},
-        expires_delta=timedelta(days=2)
+        expires_delta=expiration
     )
 
+    # Sauvegarder le token dans la base
+    token_entry = Token(
+        utilisateur_id=utilisateur.id,
+        token=access_token,
+        date_expiration=expiration_date
+    )
+    db.session.add(token_entry)
+    db.session.commit()
+
+    # Répondre avec le cookie
+    
     response = jsonify({"message": "Connexion réussie", "role": utilisateur.role})
-    set_access_cookies(response, access_token)
+    response.headers['Authorization'] = f'Bearer {access_token}'
+    set_access_cookies(response, access_token, max_age=timedelta(days=2))
+
 
     return response, 200
-
+ 
 @auth_bp.route('/logout', methods=['POST'])
 @jwt_required()
 def logout():
+    current_user_id = get_jwt_identity()
+    jwt_payload = get_jwt()
+    current_token = jwt_payload["jti"]  # Le token ID unique (jti = JWT ID)
+
+    # Supprimer le token de la base
+    token_to_delete = Token.query.filter_by(utilisateur_id=current_user_id, token=current_token).first()
+    if token_to_delete:
+        db.session.delete(token_to_delete)
+        db.session.commit()
+
+    # Supprimer les cookies
     response = jsonify({"message": "Déconnexion réussie"})
-    unset_jwt_cookies(response)
+    unset_jwt_cookies(response, secure=True, httponly=True)
     return response, 200
 
 def admin_required(f):
