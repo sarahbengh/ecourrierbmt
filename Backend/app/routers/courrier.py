@@ -118,3 +118,95 @@ def save_courrier():
         response["document_id"] = document.id  # Si un document est téléchargé, inclure son ID
 
     return jsonify(response), 201
+
+
+@courrier_bp.route('/get_courriers', methods=['POST'])
+@jwt_required()
+def get_courriers():
+    user_id = get_jwt_identity()
+    data = request.get_json()
+
+    if not data or 'type_courrier' not in data:
+        return jsonify({"message": "Le champ 'type_courrier' est requis dans le corps de la requête"}), 400
+
+    type_courrier = data['type_courrier'].lower()
+    courriers = []
+
+    if type_courrier == 'depart':
+       utilisateur = Utilisateur.query.get(user_id)
+
+       courriers = [
+            c for c in utilisateur.courriers_diffusés
+            if c.type_courrier.lower() == 'depart'
+]
+    elif type_courrier == 'arrivee':
+        utilisateur = Utilisateur.query.get(user_id)
+        if not utilisateur:
+            return jsonify({"message": "Utilisateur non trouvé"}), 404
+
+     
+        courriers = [
+            c for c in utilisateur.courriers_diffusés
+            if c.type_courrier.lower() == 'arrivee'
+        ]
+
+    else:
+        return jsonify({"message": "Type de courrier invalide. Utilisez 'depart' ou 'arrivee'."}), 400
+
+    result = []
+    for courrier in courriers:
+        result.append({
+            "id": courrier.id,
+            "type_courrier": courrier.type_courrier,
+            "priority": courrier.priority,
+            "object": courrier.object,
+            "arrival_date": courrier.arrival_date.strftime('%Y-%m-%d %H:%M:%S'),
+        })
+
+    return jsonify(result), 200
+
+
+
+@courrier_bp.route('/filtrer_courriers', methods=['POST'])
+@jwt_required()
+def filtrer_courriers():
+    user_id = get_jwt_identity()
+    utilisateur = Utilisateur.query.get(user_id)
+
+    if not utilisateur:
+        return jsonify({"message": "Utilisateur non trouvé"}), 404
+
+    data = request.get_json()
+    query = Courrier.query.join(Courrier.liste_diffusion).filter(Utilisateur.id == user_id)
+
+    # Filtres optionnels
+    if 'type_courrier' in data:
+        query = query.filter(Courrier.type_courrier.ilike(data['type_courrier']))
+
+    if 'priority' in data:
+        query = query.filter(Courrier.priority.ilike(data['priority']))
+
+    if 'date_debut' in data and 'date_fin' in data:
+        try:
+            date_debut = datetime.strptime(data['date_debut'], '%Y-%m-%d')
+            date_fin = datetime.strptime(data['date_fin'], '%Y-%m-%d')
+            query = query.filter(Courrier.arrival_date.between(date_debut, date_fin))
+        except ValueError:
+            return jsonify({"message": "Format de date invalide. Utilisez YYYY-MM-DD."}), 400
+
+    if 'object' in data:
+        query = query.filter(Courrier.object.ilike(f"%{data['object']}%"))
+
+    courriers = query.all()
+
+    result = []
+    for c in courriers:
+        result.append({
+            "id": c.id,
+            "type_courrier": c.type_courrier,
+            "priority": c.priority,
+            "object": c.object,
+            "arrival_date": c.arrival_date.strftime('%Y-%m-%d %H:%M:%S'),
+        })
+
+    return jsonify(result), 200
