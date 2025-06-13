@@ -210,3 +210,21 @@ def filtrer_courriers():
         })
 
     return jsonify(result), 200
+
+
+@courrier_bp.route('/notifications', methods=['GET'])
+@jwt_required()
+def get_notifications():
+    user_id = get_jwt_identity()
+    notifications = Notification.query.filter_by(utilisateur_id=user_id).order_by(Notification.id.desc()).all()
+
+    result = []
+    for notif in notifications:
+        result.append({
+            "id": notif.id,
+            "courrier_id": notif.courrier_id,
+            "message": notif.message,
+            "statut": notif.statut
+        })
+
+    return jsonify(result), 200
