@@ -8,7 +8,7 @@ from functools import wraps
 
 # Initialisation du Blueprint
 courrier_bp = Blueprint('courrier', __name__)
-
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 import os
 from flask import Blueprint, request, jsonify
@@ -33,12 +33,12 @@ def save_courrier():
     type_courrier = request.form.get('type_courrier')
     priority = request.form.get('priority')
     object = request.form.get('object')
-    sender_id = request.form.get('sender_id')
+    sender_id = get_jwt_identity()
     diffusion_ids = request.form.getlist('diffusion_ids')
     arrival_date_str = request.form.get('arrival_date')
         
     # Vérification de la présence des champs nécessaires
-    if not type_courrier or not priority or not object or not sender_id:
+    if not type_courrier or not priority or not object :
         return jsonify({"message": "Tous les champs sont requis"}), 400
     sender = Contact.query.get(sender_id)
     if not sender:
