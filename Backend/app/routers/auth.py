@@ -4,7 +4,7 @@ from flask_jwt_extended import (
     create_access_token, jwt_required, get_jwt_identity, JWTManager,get_jwt,
     set_access_cookies, unset_jwt_cookies
 )
-from ..models import Contact, Utilisateur ,Token
+from ..models import Contact, Utilisateur ,Service
 from ..create_app import db
 from datetime import timedelta, datetime
 from functools import wraps
@@ -16,32 +16,50 @@ bcrypt = Bcrypt()
 def home():
     return jsonify({"message": "Hey Chaimuus!"}), 200
 
+
 @auth_bp.route('/add_user', methods=['POST'])
 def register():
     data = request.get_json()
-    required_fields = ["nom", "prenom", "email", "password", "numero_tel"]
+    required_fields = ["nom", "prenom", "email", "password", "numero_tel", "service_id"]
+
+    # Vérifie que tous les champs requis sont présents
     for field in required_fields:
         if field not in data or not data[field]:
             return jsonify({"message": f"{field} est requis"}), 400
 
+    # Vérifie si l'email existe déjà
     if Utilisateur.query.filter_by(email=data["email"]).first():
         return jsonify({"message": "Email déjà utilisé"}), 400
 
+    # Vérifie si le service existe
+    service = Service.query.get(data["service_id"])
+    if not service:
+        return jsonify({"message": f"Le service avec l'ID {data['service_id']} n'existe pas."}), 400
+
+    # Vérifie que le rôle est valide (admin ou employe uniquement)
+    role = data.get("role", "employe").lower()
+    if role not in ["admin", "employe"]:
+        return jsonify({"message": "Le rôle doit être soit 'admin', soit 'employe'"}), 400
+
+    # Hash du mot de passe
     hashed_password = bcrypt.generate_password_hash(data["password"]).decode('utf-8')
 
+    # Création de l'utilisateur
     new_user = Utilisateur(
         nom=data["nom"],
         prenom=data["prenom"],
         email=data["email"],
         mot_de_passe=hashed_password,
         numero_tel=data["numero_tel"],
-        role=data.get("role", "employe")
+        role=role,
+        service_id=data["service_id"]
     )
 
     db.session.add(new_user)
     db.session.commit()
 
     return jsonify({"message": "Utilisateur créé avec succès"}), 201
+
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
@@ -63,16 +81,6 @@ def login():
         additional_claims={"role": utilisateur.role},
         expires_delta=expiration
     )
-
-    # Sauvegarder le token dans la base
-    token_entry = Token(
-        utilisateur_id=utilisateur.id,
-        token=access_token,
-        date_expiration=expiration_date
-    )
-    db.session.add(token_entry)
-    db.session.commit()
-
     # Répondre avec le cookie
     
     response = jsonify({"message": "Connexion réussie", "role": utilisateur.role})

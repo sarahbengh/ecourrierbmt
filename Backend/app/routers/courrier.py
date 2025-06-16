@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from datetime import datetime
 from werkzeug.utils import secure_filename
 import os
-from ..models import db, Courrier, Utilisateur,Document,Notification,Contact
+from ..models import db, Courrier, Utilisateur,Document,Notification,Contact,Service
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from functools import wraps
 
@@ -28,94 +28,85 @@ def allowed_file(filename):
 @jwt_required()
 def save_courrier():
     data = request.form
-    
-    # Récupération des informations du formulaire
-    type_courrier = request.form.get('type_courrier')
-    priority = request.form.get('priority')
-    object = request.form.get('object')
+
+    type_courrier = data.get('type_courrier')
+    priority = data.get('priority')
+    object = data.get('object')
     sender_id = get_jwt_identity()
-    diffusion_ids = request.form.getlist('diffusion_ids')
-    arrival_date_str = request.form.get('arrival_date')
-        
-    # Vérification de la présence des champs nécessaires
-    if not type_courrier or not priority or not object :
-        return jsonify({"message": "Tous les champs sont requis"}), 400
-    sender = Contact.query.get(sender_id)
+    arrival_date_str = data.get('arrival_date')
+    service_ids = data.getlist('diffusion_service_ids')
+
+    sender = Utilisateur.query.get(sender_id)
     if not sender:
         return jsonify({"message": f"L'expéditeur avec l'ID {sender_id} n'existe pas."}), 400
-    # Convertir arrival_date en datetime si fourni
+    if sender.role.lower() != "admin":
+        return jsonify({"message": "Accès refusé : seuls les administrateurs peuvent envoyer un courrier."}), 403
+
+    if not type_courrier or not priority or not object:
+        return jsonify({"message": "Tous les champs sont requis"}), 400
+
     if arrival_date_str:
         try:
-            arrival_date = datetime.strptime(arrival_date_str, '%Y-%m-%d %H:%M:%S')  # Format : 'YYYY-MM-DD HH:MM:SS'
+            arrival_date = datetime.strptime(arrival_date_str, '%Y-%m-%d %H:%M:%S')
         except ValueError:
             return jsonify({"message": "Format de la date d'arrivée incorrect, utilisez 'YYYY-MM-DD HH:MM:SS'"}), 400
     else:
-        arrival_date = datetime.utcnow()  # Si la date d'arrivée n'est pas fournie, on utilise la date actuelle
+        arrival_date = datetime.utcnow()
 
-    # Création du courrier
     courrier = Courrier(
         type_courrier=type_courrier,
         priority=priority,
         object=object,
         sender_id=sender_id,
-        arrival_date=arrival_date  # Assignation de la date d'arrivée
+        arrival_date=arrival_date
     )
     db.session.add(courrier)
-    db.session.commit()  # Sauvegarde du courrier
-    
-    
-    for user_id in diffusion_ids:
-        user = Utilisateur.query.get(user_id)
-        if user:
-            courrier.liste_diffusion.append(user)
 
-# Ajouter un flush ici pour forcer la mise à jour de la base de données
+    # Ajouter les services destinataires
+    for service_id in service_ids:
+        service = Service.query.get(service_id)
+        if service:
+            courrier.diffusion_services.append(service)
+
     db.session.flush()
-    db.session.commit()  # Sauvegarde des modifications du courrier
+    db.session.commit()
 
-   
-   
-
-    # Traitement du fichier (si un fichier est inclus)
+    # Gestion du fichier
     if 'file' in request.files:
         file = request.files['file']
         if file.filename == '':
             return jsonify({"message": "Aucun fichier sélectionné"}), 400
 
         if file and allowed_file(file.filename):
-            # Sécuriser le nom du fichier et le sauvegarder
             filename = secure_filename(file.filename)
             file_path = os.path.join(UPLOAD_FOLDER, filename)
             file.save(file_path)
 
-            # Enregistrer le document dans la base de données et lier au courrier
             document = Document(
                 nom_fichier=filename,
                 chemin_fichier=file_path,
                 courrier_id=courrier.id
             )
             db.session.add(document)
-            db.session.commit()
 
-            # Ajouter une notification pour le document
-            for user_id in diffusion_ids:
-                user = Utilisateur.query.get(user_id)
-                if user:
+            # Notifications pour chaque responsable de service
+            for service_id in service_ids:
+                service = Service.query.get(service_id)
+                if service and service.responsable:
                     notification = Notification(
-                        utilisateur_id=user.id,
+                        utilisateur_id=service.responsable.id,
                         courrier_id=courrier.id,
                         message=f"Un document a été ajouté au courrier : {object}",
                         statut="non lu"
                     )
                     db.session.add(notification)
 
-            db.session.commit()  # Sauvegarde des notifications liées au document
+            db.session.commit()
 
-    # Retour de succès avec l'ID du courrier et le document si disponible
-    response = {"message": "Courrier enregistré et envoyé aux utilisateurs sélectionnés", "courrier_id": courrier.id}
+    response = {"message": "Courrier enregistré et envoyé aux services sélectionnés", "courrier_id": courrier.id}
 
     if 'file' in request.files:
-        response["document_id"] = document.id  # Si un document est téléchargé, inclure son ID
+        response["document_id"] = document.id
 
     return jsonify(response), 201
 
@@ -124,46 +115,64 @@ def save_courrier():
 @jwt_required()
 def get_courriers():
     user_id = get_jwt_identity()
+    utilisateur = Utilisateur.query.get(user_id)
+
+    if not utilisateur:
+        return jsonify({"message": "Utilisateur non trouvé"}), 404
+
     data = request.get_json()
 
-    if not data or 'type_courrier' not in data:
-        return jsonify({"message": "Le champ 'type_courrier' est requis dans le corps de la requête"}), 400
+    # Si admin
+    if utilisateur.role.lower() == "admin":
+        if not data or 'type_courrier' not in data:
+            return jsonify({"message": "Le champ 'type_courrier' est requis pour les admins"}), 400
 
-    type_courrier = data['type_courrier'].lower()
-    courriers = []
+        type_courrier = data['type_courrier'].lower()
+        if type_courrier not in ['arrivee', 'depart']:
+            return jsonify({"message": "Type de courrier invalide. Utilisez 'arrivee' ou 'depart'."}), 400
 
-    if type_courrier == 'depart':
-       utilisateur = Utilisateur.query.get(user_id)
-
-       courriers = [
-            c for c in utilisateur.courriers_diffusés
-            if c.type_courrier.lower() == 'depart'
-]
-    elif type_courrier == 'arrivee':
-        utilisateur = Utilisateur.query.get(user_id)
-        if not utilisateur:
-            return jsonify({"message": "Utilisateur non trouvé"}), 404
-
-     
-        courriers = [
-            c for c in utilisateur.courriers_diffusés
-            if c.type_courrier.lower() == 'arrivee'
-        ]
+        courriers = Courrier.query.filter(
+            Courrier.type_courrier.ilike(type_courrier)
+        ).all()
 
     else:
-        return jsonify({"message": "Type de courrier invalide. Utilisez 'depart' ou 'arrivee'."}), 400
+        # Utilisateur non admin → uniquement les courriers "arrivee"
+        type_courrier = "arrivee"
 
+        # Récupérer tous les services dont il est responsable
+        services_dirigés = utilisateur.services_dirigés
+        ids_services = [s.id for s in services_dirigés]
+
+        if not ids_services:
+            return jsonify(["hi"]), 200  # Aucun service dirigé → aucun courrier
+
+        courriers = Courrier.query.join(Courrier.diffusion_services).filter(
+    Service.responsable_id == utilisateur.id
+).all()
+
+    # Construction du résultat
     result = []
     for courrier in courriers:
-        result.append({
+        courrier_data = {
             "id": courrier.id,
             "type_courrier": courrier.type_courrier,
             "priority": courrier.priority,
             "object": courrier.object,
             "arrival_date": courrier.arrival_date.strftime('%Y-%m-%d %H:%M:%S'),
-        })
+        }
+
+        if hasattr(courrier, 'documents') and courrier.documents:
+            courrier_data["documents"] = [{
+                "id": doc.id,
+                "nom_fichier": doc.nom_fichier,
+                "chemin_fichier": doc.chemin_fichier
+            } for doc in courrier.documents]
+
+        result.append(courrier_data)
 
     return jsonify(result), 200
+
+
 
 
 

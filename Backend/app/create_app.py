@@ -6,8 +6,9 @@ from flask_socketio import SocketIO
 from flask_jwt_extended import JWTManager
 from flask_session import Session
 import os
-
+from flask_migrate import Migrate
 db = SQLAlchemy()
+migrate = Migrate()
 bcrypt = Bcrypt()
 socketio = SocketIO()
 jwt = JWTManager()
@@ -30,6 +31,7 @@ def create_app():
     # Initialisation correcte des extensions
  
     db.init_app(app)
+    migrate.init_app(app, db)
     bcrypt.init_app(app)
     socketio.init_app(app)
     jwt.init_app(app)  # ✅ Ne pas recréer une nouvelle instance ici !
